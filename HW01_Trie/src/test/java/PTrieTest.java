@@ -7,125 +7,123 @@ import static org.junit.Assert.assertFalse;
 
 public class PTrieTest {
     @Test
-    public void TestAdd() {
+    public void testAdd() {
         PTrie trie = new PTrie();
-        trie.add("hello");
-        trie.add("world");
-        trie.add("HeLL");
-        trie.add("he");
-        trie.add("her");
-        trie.add("work");
-        assertEquals(trie.size(), 6);
+        assertTrue(trie.add("hello"));
+        assertTrue(trie.add("world"));
+        assertTrue(trie.add("HeLL"));
+        assertTrue(trie.add("he"));
+        assertTrue(trie.add("her"));
+        assertTrue(trie.add("work"));
+        assertEquals(6, trie.size());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testAddWrongSymbol() {
+        PTrie trie = new PTrie();
+        trie.add("Hi!");
     }
 
     @Test
-    public void TestAddWrongSymbol() {
+    public void testSearchWrongSymbol() {
         PTrie trie = new PTrie();
-        assertFalse(trie.add("Hi!"));
-        assertEquals(trie.size(), 0);
-    }
-
-    @Test
-    public void TestSearchWrongSymbol() {
-        PTrie trie = new PTrie();
-        trie.add("Hi");
+        assertTrue(trie.add("Hi"));
         assertFalse(trie.contains("Hi!"));
-        assertEquals(trie.howManyStartsWithPrefix("Hi!"), 0);
     }
 
     @Test
-    public void TestAddRemoveCheck() {
+    public void testAddRemoveCheck() {
         PTrie trie = new PTrie();
-        trie.add("Java");
+        assertTrue(trie.add("Java"));
         assertTrue(trie.contains("Java"));
-        assertEquals(trie.size(), 1);
-        trie.remove("Java");
+        assertEquals(1, trie.size());
+        assertTrue(trie.remove("Java"));
         assertFalse(trie.contains("Java"));
-        assertEquals(trie.size(), 0);
+        assertEquals(0, trie.size());
     }
 
     @Test
-    public void TestAddRemovePrefixCheck() {
+    public void testAddRemovePrefixCheck() {
         PTrie trie = new PTrie();
-        trie.add("Java");
-        trie.add("Ja");
+        assertTrue(trie.add("Java"));
+        assertTrue(trie.add("Ja"));
         assertTrue(trie.contains("Ja"));
         assertTrue(trie.contains("Java"));
-        assertEquals(trie.size(), 2);
-        trie.remove("Ja");
+        assertEquals(2, trie.size());
+        assertTrue(trie.remove("Ja"));
         assertFalse(trie.contains("Ja"));
         assertTrue(trie.contains("Java"));
-        assertEquals(trie.size(), 1);
+        assertEquals(1, trie.size());
     }
 
     @Test
-    public void TestAddRemovePrefixBCheck() {
+    public void testAddRemovePrefixBCheck() {
         PTrie trie = new PTrie();
-        trie.add("Java");
-        trie.add("Ja");
+        assertTrue(trie.add("Java"));
+        assertTrue(trie.add("Ja"));
         assertTrue(trie.contains("Ja"));
         assertTrue(trie.contains("Java"));
-        assertEquals(trie.size(), 2);
-        trie.remove("Java");
+        assertEquals(2, trie.size());
+        assertTrue(trie.remove("Java"));
         assertFalse(trie.contains("Java"));
         assertTrue(trie.contains("Ja"));
-        assertEquals(trie.size(), 1);
+        assertEquals(1, trie.size());
     }
 
     @Test
-    public void TestStartsWith() {
+    public void testStartsWith() {
         PTrie trie = new PTrie();
-        trie.add("Hello");
-        trie.add("Hell");
-        trie.add("He");
-        trie.add("Her");
-        trie.add("Haha");
-        assertEquals(trie.howManyStartsWithPrefix("Hell"), 2);
-        assertEquals(trie.howManyStartsWithPrefix("He"), 4);
+        assertTrue(trie.add("Hello"));
+        assertTrue(trie.add("Hell"));
+        assertTrue(trie.add("He"));
+        assertTrue(trie.add("Her"));
+        assertTrue(trie.add("Haha"));
+        assertEquals(2, trie.howManyStartsWithPrefix("Hell"));
+        assertEquals(4, trie.howManyStartsWithPrefix("He"));
     }
 
     @Test
-    public void TestAddWordNotPrefix() {
+    public void testAddWordNotPrefix() {
         PTrie trie = new PTrie();
-        trie.add("Hell");
-        trie.add("Hello");
+        assertTrue(trie.add("Hell"));
+        assertTrue(trie.add("Hello"));
         assertTrue(trie.contains("Hell"));
         assertTrue(trie.contains("Hello"));
-        assertEquals(trie.howManyStartsWithPrefix("Hell"), 2);
-        assertEquals(trie.size(), 2);
+        assertEquals(2, trie.howManyStartsWithPrefix("Hell"));
+        assertEquals(2, trie.size());
     }
 
     @Test
-    public void TestRemoveWordNotPrefix() {
+    public void testRemoveWordNotPrefix() {
         PTrie trie = new PTrie();
-        trie.add("Hell");
-        trie.add("Hello");
-        trie.add("Hellow");
-        trie.remove("Hellow");
+        assertTrue(trie.add("Hell"));
+        assertTrue(trie.add("Hello"));
+        assertTrue(trie.add("Hellow"));
+        assertTrue(trie.remove("Hellow"));
         assertTrue(trie.contains("Hell"));
         assertTrue(trie.contains("Hello"));
         assertFalse(trie.contains("Hellow"));
-        assertEquals(trie.howManyStartsWithPrefix("Hell"), 2);
+        assertEquals(2, trie.howManyStartsWithPrefix("Hell"));
     }
 
     @Test
-    public void TestDoubleAdd() {
+    public void testDoubleAdd() {
         PTrie trie = new PTrie();
-        trie.add("Hello");
+        assertTrue(trie.add("Hello"));
         assertFalse(trie.add("Hello"));
         assertTrue(trie.contains("Hello"));
-        assertEquals(trie.howManyStartsWithPrefix("Hel"), 1);
-        assertEquals(trie.size(), 1);
+        assertEquals(1, trie.howManyStartsWithPrefix("Hel"));
+        assertEquals(1, trie.size());
     }
 
     @Test
-    public void TestDoubleRemove() {
+    public void testDoubleRemove() {
         PTrie trie = new PTrie();
-        trie.add("Hello");
+        assertTrue(trie.add("Hello"));
         assertTrue(trie.remove("Hello"));
         assertFalse(trie.remove("Hello"));
         assertFalse(trie.contains("Hello"));
-        assertEquals(trie.howManyStartsWithPrefix("Hel"), 0);
-        assertEquals(trie.size(), 0);
+        assertEquals(0, trie.howManyStartsWithPrefix("Hel"));
+        assertEquals(0, trie.size());
     }
 }
