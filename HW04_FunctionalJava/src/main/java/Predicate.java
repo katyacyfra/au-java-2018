@@ -24,20 +24,15 @@ public abstract class Predicate<T> extends Function1<T, Boolean> {
         };
     }
 
-    public static <S> Predicate<S> ALWAYS_TRUE() {
-        return new Predicate<S>() {
-            public Boolean apply(S arg) {
-                return true;
-            }
-        };
-    }
-
-    public static <S> Predicate<S> ALWAYS_FALSE() {
-        return new Predicate<S>() {
-            public Boolean apply(S arg) {
-                return false;
-            }
-        };
-    }
+    public static final Predicate<Object> ALWAYS_TRUE = new Predicate<Object>() {
+        public Boolean apply(Object obj) {
+            return true;
+        }
+    };
+    public static final Predicate<Object> ALWAYS_FALSE = new Predicate<Object>() {
+        public Boolean apply(Object obj) {
+            return false;
+        }
+    };
 
 }

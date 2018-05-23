@@ -22,7 +22,7 @@ public class Collections {
         return result;
     }
 
-    public static <T> ArrayList<T> takeWhile( Predicate<T> predicate,Iterable<? extends T> list) {
+    public static <T> ArrayList<T> takeWhile( Predicate<? super T> predicate,Iterable<? extends T> list) {
         ArrayList<T> result = new ArrayList<>();
 
         for (T elem : list) {
@@ -35,38 +35,27 @@ public class Collections {
         return result;
     }
 
-    public static <T> ArrayList<T> takeUnless( Predicate<T> predicate, Iterable<? extends T> list) {
-        ArrayList<T> result = new ArrayList<>();
-        for (T elem : list) {
-            if (predicate.not().apply(elem)) {
-                result.add(elem);
-            } else {
-                break;
-            }
-        }
-        return result;
+    public static <T> ArrayList<T> takeUnless( Predicate<? super T> predicate, Iterable<? extends T> list) {
+        return takeWhile(predicate.not(),list );
     }
 
 
-    public static <T, R> R foldl(Function2<R, T, R> f, R acc, Iterable<? extends T> list) {
-        R p = acc;
-        for (T elem : list)
-            p = f.apply(p, elem);
-        return p;
+    public static <T, R> R foldl(Function2<? super R, ? super T, ? extends R> f, R acc, Iterable<? extends T> list) {
+        for (T el : list) {
+            acc = f.apply(acc, el);
+        }
+        return acc;
     }
 
-    public static <T, R> R foldr(Function2<R, T, R> f, R acc, Iterable<? extends T> list) {
-        R p = acc;
-        ArrayList<T> a = new ArrayList<T>();
-        for (T elem : list)
-            a.add(elem);
 
-        ListIterator li = a.listIterator(a.size());
-
-        while (li.hasPrevious()) {
-            p = f.apply(p, (T)li.previous());
+    public static <T, R> R foldr(Function2<? super T, ? super R, ? extends R> f, R acc, Collection<? extends T> list) {
+        List<T> els = new ArrayList<>();
+        els.addAll(list);
+        java.util.Collections.reverse(els);
+        for (T el : els) {
+            acc = f.apply(el, acc);
         }
-        return p;
+        return acc;
     }
 
 }

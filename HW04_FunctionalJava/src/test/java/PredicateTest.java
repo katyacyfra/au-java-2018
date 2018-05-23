@@ -56,11 +56,20 @@ public class PredicateTest {
 
     @Test
     public void testAlwaysFalse() {
-        assertFalse(Predicate.ALWAYS_FALSE().apply(true));
+        assertFalse(Predicate.ALWAYS_FALSE.apply(true));
     }
 
     @Test
     public void testAlwaysTrue() {
-        assertTrue(Predicate.ALWAYS_TRUE().apply(false));
+        assertTrue(Predicate.ALWAYS_TRUE.apply(false));
+    }
+
+
+    @Test
+    public void testLazy() {
+        Predicate<Object> lazyTrue = Predicate.ALWAYS_TRUE.or(isNull);
+        assertTrue(lazyTrue.apply(1));
+        Predicate<Object> lazyFalse = Predicate.ALWAYS_FALSE.or(isNull);
+        assertFalse(lazyFalse.apply(0));
     }
 }

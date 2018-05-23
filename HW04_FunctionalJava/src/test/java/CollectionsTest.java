@@ -23,6 +23,13 @@ public class CollectionsTest {
                 }
             };
 
+    private static Function2<Integer, Integer, Integer> sub =
+            new Function2<Integer, Integer, Integer>() {
+                public Integer apply(final Integer a, final Integer b) {
+                    return a - b;
+                }
+            };
+
     private Predicate<Integer> positive = new Predicate<Integer>() {
         public Boolean apply(Integer arg) {
             return arg != null && arg > 0;
@@ -42,6 +49,7 @@ public class CollectionsTest {
         assertEquals(b, res.get(0));
         assertEquals(c, res.get(1));
         assertEquals(d, res.get(2));
+
     }
 
     @Test
@@ -111,4 +119,57 @@ public class CollectionsTest {
         Integer r = 7;
         assertEquals(r, Collections.foldr(add, 1, a));
     }
+
+    @Test
+    public void testFoldLeftOrRight() {
+        ArrayList<Integer> a = new ArrayList<>();
+        a.add(1);
+        a.add(2);
+        a.add(3);
+        a.add(-4);
+        int resFoldl = Collections.foldl(sub, 0, a);
+        int resFoldr = Collections.foldr(sub, 0, a);
+        assertFalse(resFoldl==resFoldr);
+        assertEquals(-2, resFoldl);
+        assertEquals(6, resFoldr);
+    }
+
+    private Function1<Object, Integer> widcardsTester =
+            new Function1<Object, Integer>() {
+                public Integer apply(final Object a) {
+                    return 1;
+                }
+            };
+    @Test
+    public void testWildcardsFunction() {
+        ArrayList<Integer> a = new ArrayList<>();
+        a.add(-1);
+        a.add(-2);
+        a.add(-3);
+        a.add(5);
+        a.add(5);
+        ArrayList<Number> res = Collections.<Number,  Number>map(widcardsTester,a);
+        assertEquals(1, res.get(0));
+        assertEquals(1, res.get(1));
+
+    }
+
+    private Predicate<Object> notNull = new Predicate<Object>() {
+        public Boolean apply(Object arg) {
+            return arg != null;
+        }
+    };
+
+    @Test
+    public void testWildcardsPredicate() {
+        ArrayList<Integer> a = new ArrayList<>();
+        a.add(null);
+        a.add(5);
+        a.add(null);
+        ArrayList<Integer> res = Collections.filter(notNull, a);
+        assertEquals(1, res.size());
+
+    }
+
+
 }
