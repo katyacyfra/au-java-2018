@@ -2,6 +2,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -38,98 +40,56 @@ public class CollectionsTest {
 
     @Test
     public void testMap() {
-        ArrayList<Integer> a = new ArrayList<>();
-        a.add(1);
-        a.add(2);
-        a.add(3);
-        Integer b = 1;
-        Integer c = 4;
-        Integer d = 9;
+        List<Integer> a = Arrays.asList(1, 2, 3);
         ArrayList<Integer> res = Collections.map(square, a);
-        assertEquals(b, res.get(0));
-        assertEquals(c, res.get(1));
-        assertEquals(d, res.get(2));
+        assertEquals(Arrays.asList(1, 4, 9), res);
 
     }
 
     @Test
     public void testFilter() {
-        ArrayList<Integer> a = new ArrayList<>();
-        a.add(1);
-        a.add(-2);
-        a.add(3);
-        a.add(-4);
-        Integer b = 1;
-        Integer c = 3;
+        List<Integer> a = Arrays.asList(1, -2, 3, -4);
         ArrayList<Integer> res = Collections.filter(positive, a);
         assertEquals(2, res.size());
-        assertEquals(b, res.get(0));
-        assertEquals(c, res.get(1));
+        assertEquals(Arrays.asList(1, 3), res);
     }
 
     @Test
     public void testTakeWhile() {
-        ArrayList<Integer> a = new ArrayList<>();
-        a.add(1);
-        a.add(2);
-        a.add(-3);
-        a.add(5);
-        Integer b = 1;
-        Integer c = 2;
+        List<Integer> a = Arrays.asList(1, 2, -3, 5);
         ArrayList<Integer> res = Collections.takeWhile(positive, a);
         assertEquals(2, res.size());
-        assertEquals(b, res.get(0));
-        assertEquals(c, res.get(1));
+        assertEquals(Arrays.asList(1, 2), res);
     }
 
     @Test
     public void testTakeUnless() {
-        ArrayList<Integer> a = new ArrayList<>();
-        a.add(-1);
-        a.add(-2);
-        a.add(-3);
-        a.add(5);
-        a.add(5);
-        Integer b = -1;
-        Integer c = -2;
-        Integer d = -3;
+        List<Integer> a = Arrays.asList(-1, -2, -3, 5, 5);
         ArrayList<Integer> res = Collections.takeUnless(positive, a);
         assertEquals(3, res.size());
-        assertEquals(b, res.get(0));
-        assertEquals(c, res.get(1));
-        assertEquals(d, res.get(2));
+        assertEquals(Arrays.asList(-1, -2, -3), res);
     }
 
     @Test
     public void testFoldL() {
-        ArrayList<Integer> a = new ArrayList<>();
-        a.add(1);
-        a.add(2);
-        a.add(3);
+        List<Integer> a = Arrays.asList(1, 2, 3);
         Integer r = 7;
         assertEquals(r, Collections.foldl(add, 1, a));
     }
 
     @Test
     public void testFoldR() {
-        ArrayList<Integer> a = new ArrayList<>();
-        a.add(1);
-        a.add(2);
-        a.add(3);
+        List<Integer> a = Arrays.asList(1, 2, 3);
         Integer r = 7;
         assertEquals(r, Collections.foldr(add, 1, a));
     }
 
     @Test
     public void testFoldLeftOrRight() {
-        ArrayList<Integer> a = new ArrayList<>();
-        a.add(1);
-        a.add(2);
-        a.add(3);
-        a.add(-4);
+        List<Integer> a = Arrays.asList(1, 2, 3, -4);
         int resFoldl = Collections.foldl(sub, 0, a);
         int resFoldr = Collections.foldr(sub, 0, a);
-        assertFalse(resFoldl==resFoldr);
+        assertFalse(resFoldl == resFoldr);
         assertEquals(-2, resFoldl);
         assertEquals(6, resFoldr);
     }
@@ -140,17 +100,12 @@ public class CollectionsTest {
                     return 1;
                 }
             };
+
     @Test
     public void testWildcardsFunction() {
-        ArrayList<Integer> a = new ArrayList<>();
-        a.add(-1);
-        a.add(-2);
-        a.add(-3);
-        a.add(5);
-        a.add(5);
-        ArrayList<Number> res = Collections.<Number,  Number>map(widcardsTester,a);
-        assertEquals(1, res.get(0));
-        assertEquals(1, res.get(1));
+        List<Integer> a = Arrays.asList(-1, -2, -3, 5, 5);
+        ArrayList<Number> res = Collections.<Number, Number>map(widcardsTester, a);
+        assertEquals(Arrays.asList(1, 1, 1, 1, 1), res);
 
     }
 
@@ -162,10 +117,7 @@ public class CollectionsTest {
 
     @Test
     public void testWildcardsPredicate() {
-        ArrayList<Integer> a = new ArrayList<>();
-        a.add(null);
-        a.add(5);
-        a.add(null);
+        List<Integer> a = Arrays.asList(null, 5, null);
         ArrayList<Integer> res = Collections.filter(notNull, a);
         assertEquals(1, res.size());
 
