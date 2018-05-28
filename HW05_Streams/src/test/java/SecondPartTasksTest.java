@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -23,6 +24,7 @@ public class SecondPartTasksTest {
     @Test
     public void testPiDividedBy4() {
         assertTrue(SecondPartTasks.piDividedBy4() < 1);
+        assertEquals(Math.PI / 4, SecondPartTasks.piDividedBy4(), 0.1);
     }
 
     @Test
