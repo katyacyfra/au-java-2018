@@ -64,11 +64,19 @@ public class PredicateTest {
         assertTrue(Predicate.ALWAYS_TRUE.apply(false));
     }
 
-    private Predicate<Object> increment = new Predicate<Object>() {
+    private Predicate<Object> incrementTrue = new Predicate<Object>() {
         public Boolean apply(Object arg) {
             Incrementator i = (Incrementator) arg;
             i.incr();
             return true;
+        }
+    };
+
+    private Predicate<Object> incrementFalse = new Predicate<Object>() {
+        public Boolean apply(Object arg) {
+            Incrementator i = (Incrementator) arg;
+            i.incr();
+            return false;
         }
     };
 
@@ -82,10 +90,17 @@ public class PredicateTest {
     @Test
     public void testLazy() {
         Incrementator counter = new Incrementator();
-        Predicate<Object> lazyTrue = Predicate.ALWAYS_TRUE.or(increment);
-        assertTrue(Predicate.ALWAYS_TRUE.or(increment).apply(counter));
+        Predicate<Object> lazyTrue = Predicate.ALWAYS_TRUE;
+        Predicate<Object> lazyFalse = Predicate.ALWAYS_FALSE;
+
+        assertTrue(lazyTrue.or(incrementFalse).apply(counter));
         assertEquals(0, counter.i);
-        assertTrue(Predicate.ALWAYS_FALSE.or(increment).apply(counter));
+        assertTrue(lazyFalse.or(incrementTrue).apply(counter));
         assertEquals(1, counter.i);
+
+        assertFalse(lazyFalse.and(incrementTrue).apply(counter));
+        assertEquals(1, counter.i);
+        assertTrue(lazyTrue.and(incrementTrue).apply(counter));
+        assertEquals(2, counter.i);
     }
 }
