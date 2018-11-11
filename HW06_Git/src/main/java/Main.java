@@ -17,6 +17,4 @@ public class Main {
         CommandLine.run(new Git(), System.err, args);
 
     }
-
-
 }

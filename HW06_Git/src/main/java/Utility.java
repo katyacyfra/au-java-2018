@@ -3,6 +3,8 @@ import org.json.simple.JSONValue;
 import org.json.simple.parser.JSONParser;
 
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.security.DigestInputStream;
@@ -48,7 +50,7 @@ public class Utility {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest((filename + getCurrentTime()).getBytes(StandardCharsets.UTF_8));
 
-            return new String(bytesToHex(hash));
+            return bytesToHex(hash);
         } catch (NoSuchAlgorithmException e) {
             return null;
         }
@@ -76,20 +78,22 @@ public class Utility {
         return jsonObject;
     }
 
-    public static boolean equalHash(String a, String b) throws NoSuchAlgorithmException, IOException {
-        byte[] bA = Files.readAllBytes(Paths.get(a));
-        byte[] hashA = MessageDigest.getInstance("MD5").digest(bA);
-
-        byte[] bB = Files.readAllBytes(Paths.get(b));
-        byte[] hashB = MessageDigest.getInstance("MD5").digest(bB);
-
-        return bytesToHex(hashA).equals(bytesToHex(hashB));
-    }
 
     public static String getMD5(String filePath) throws IOException, NoSuchAlgorithmException {
-        byte[] b = Files.readAllBytes(Paths.get(filePath));
-        byte[] hash = MessageDigest.getInstance("MD5").digest(b);
-        return bytesToHex(hash);
+
+        try(FileInputStream inputStream = new FileInputStream(filePath))
+        {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            FileChannel channel = inputStream.getChannel();
+            ByteBuffer buff = ByteBuffer.allocate(2048);
+            while (channel.read(buff) != -1) {
+                buff.flip();
+                md.update(buff);
+                buff.clear();
+            }
+            byte[] hashValue = md.digest();
+            return bytesToHex(hashValue);
+        }
     }
 
     public String createBlob(String source) throws IOException {
@@ -149,9 +153,6 @@ public class Utility {
 
         String lowestAncestor = "";
 
-        if (parent.equals("")) {
-            return lowestAncestor;
-        }
 
         HashSet<String> nodes = new HashSet<>();
         nodes.add(commitA);

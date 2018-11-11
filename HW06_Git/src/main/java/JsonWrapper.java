@@ -8,8 +8,8 @@ import java.util.List;
 
 public class JsonWrapper {
 
-    JSONObject jsonObject;
-    String filename;
+    private JSONObject jsonObject;
+    private String filename;
 
     public JsonWrapper(String filePath) throws IOException, org.json.simple.parser.ParseException {
         filename = filePath;

@@ -9,11 +9,14 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
 import picocli.CommandLine.*;
 import picocli.CommandLine.Command;
+
+import static java.util.stream.Collectors.toList;
 
 @Command
 public class Git implements Runnable {
@@ -24,15 +27,17 @@ public class Git implements Runnable {
     private static final String MASTER_BRANCH = GIT_REF_DIR + File.separator + "master";
     private static final String HEAD = GIT_REF_DIR + File.separator + "HEAD";
     private static final String GIT_INDEX = GIT_DIR + File.separator + "index";
+    private static final String GIT_INDEX_DEL = GIT_DIR + File.separator + "index_del";
 
     @Command(description = "Git init", mixinStandardHelpOptions = true)
     public void init() throws IOException {
         boolean dir = new File(GIT_DIR).mkdirs();
         if (dir) {
-            boolean obj = new File(GIT_OBJ_DIR).mkdirs();
             boolean refs = new File(GIT_REF_DIR).mkdirs();
             File index = new File(GIT_INDEX);
             index.createNewFile();
+            File indexDel = new File(GIT_INDEX_DEL);
+            indexDel.createNewFile();
             if (refs) {
                 File master = new File(MASTER_BRANCH);
                 master.createNewFile();
@@ -72,20 +77,14 @@ public class Git implements Runnable {
     public static void rm(
             @Parameters(arity = "1..*", paramLabel = "FILES") List<String> files)
             throws IOException, NoSuchAlgorithmException, ParseException {
-        JsonWrapper index = new JsonWrapper(GIT_INDEX);
-        JsonWrapper tree = getWorkingTree();
+        JsonWrapper index = new JsonWrapper(GIT_INDEX_DEL);
         String filename;
         for (Iterator<String> it = files.iterator(); it.hasNext(); ) {
             filename = CURRENT_DIR + File.separator + Utility.normalizePath(it.next());
-            index.deleteItem(filename);
-            if (tree != null) {
-                tree.deleteItem(filename);
-            }
+            index.addItemSingle(filename, "");
         }
         index.write();
-        if (tree != null) {
-            tree.write();
-        }
+
     }
 
 
@@ -97,10 +96,11 @@ public class Git implements Runnable {
         ArrayList<String> notStaged = new ArrayList<>();
         ArrayList<String> stagedM = new ArrayList<>();
         ArrayList<String> stagedN = new ArrayList<>();
+        ArrayList<String> stagedD = new ArrayList<>();
+        ArrayList<String> notStagedD = new ArrayList<>();
         JSONObject wd = wdState();
         JsonWrapper cInfo = getWorkingTree();
         JsonWrapper index = new JsonWrapper(GIT_INDEX);
-        //TODO refactor this mess
         if (cInfo != null) {
             JSONObject commitInfo = cInfo.getJsonObject();
             for (Iterator iterator = wd.keySet().iterator(); iterator.hasNext(); ) {
@@ -130,10 +130,24 @@ public class Git implements Runnable {
                         }
                     }
 
-                } else {
+                }
+                else {
                     untracked.add(wdKey);
                 }
             }
+            //manage deleted files
+            for (Iterator iterator = commitInfo.keySet().iterator(); iterator.hasNext(); ) {
+                String cKey = (String) iterator.next();
+                JsonWrapper indexDel = new JsonWrapper(GIT_INDEX_DEL);
+                if ((indexDel!=null && !indexDel.getJsonObject().containsKey(cKey) && !wd.containsKey(cKey)) ||
+                        indexDel == null && !wd.containsKey(cKey)) {
+                    notStagedD.add(cKey);
+                }
+                else if (indexDel!=null && indexDel.getJsonObject().containsKey(cKey)) {
+                    stagedD.add(cKey);
+                }
+            }
+
         } else {
             for (Iterator iterator = wd.keySet().iterator(); iterator.hasNext(); ) {
                 String wdKey = (String) iterator.next();
@@ -149,11 +163,11 @@ public class Git implements Runnable {
             }
 
         }
-        printStatus(untracked, notStaged, stagedM, stagedN);
+        printStatus(untracked, notStaged, stagedM, stagedN, stagedD, notStagedD);
     }
 
     private static void printStatus(List<String> untracked, List<String> notStaged,
-                                    List<String> stagedM, List<String> stagedN) {
+                                    List<String> stagedM, List<String> stagedN, List<String> stagedD, List<String> notStagedD) {
         if (!untracked.isEmpty()) {
             System.out.println("# Untracked files:");
             System.out.println("#");
@@ -163,7 +177,7 @@ public class Git implements Runnable {
             System.out.println("#");
             System.out.println("#");
         }
-        if (!stagedM.isEmpty() || !stagedN.isEmpty()) {
+        if (!stagedM.isEmpty() || !stagedN.isEmpty() || !stagedD.isEmpty()) {
             System.out.println("# Changes to be committed:");
             System.out.println("#");
             for (String name : stagedN) {
@@ -172,21 +186,27 @@ public class Git implements Runnable {
             for (String name : stagedM) {
                 System.out.println("#   modified:   " + name);
             }
+            for (String name : stagedD) {
+                System.out.println("#   deleted:   " + name);
+            }
             System.out.println("#");
             System.out.println("#");
         }
-        if (!notStaged.isEmpty()) {
+        if (!notStaged.isEmpty() || !notStagedD.isEmpty()) {
             System.out.println("# Changes not staged for commit:");
             System.out.println("#");
             for (String name : notStaged) {
                 System.out.println("#   modified:   " + name);
             }
+            for (String name : notStagedD) {
+                System.out.println("#   deleted:   " + name);
+            }
         }
     }
 
+    //возвращаемая здесь штука вполне могла быть не джсоном
     private static JSONObject wdState() throws IOException, NoSuchAlgorithmException {
         List<String> filesInDir = Utility.indexDir(CURRENT_DIR);
-        Utility ut = new Utility(GIT_OBJ_DIR);
         JSONObject wd = new JSONObject();
         for (String filename : filesInDir) {
             JSONArray values = new JSONArray();
@@ -199,7 +219,7 @@ public class Git implements Runnable {
 
 
     @Command(description = "Git commit", mixinStandardHelpOptions = true)
-    public static void commit(
+    public static String commit(
             @Option(names = {"-m", "-message"}) String message)
             throws IOException, ParseException {
         JSONObject commitInfo = new JSONObject();
@@ -245,24 +265,60 @@ public class Git implements Runnable {
         treeInfo.write();
         index.clear();
 
+        //delete files
+        index = new JsonWrapper(GIT_INDEX_DEL);
+        it = index.getKeyIterator();
+
+        while (it.hasNext()) {
+            String key = it.next();
+            treeInfo.deleteItem(key);
+        }
+        treeInfo.write();
+        index.clear();
+
         //write current commit to revision
         try (PrintWriter writer = new PrintWriter(branch)) {
             writer.print(commitFilename);
         }
+        return commitFilename;
     }
-
 
     @Command(description = "Get log of commits", mixinStandardHelpOptions = true)
     public static void log(
-            @Parameters(arity = "0..1", paramLabel = "revision") String revision)
+            @Parameters(arity = "0..1", paramLabel = "commit") String revision)
             throws IOException, ParseException {
         Utility ut = new Utility(GIT_OBJ_DIR);
-        String commit = getRevisionCommit(revision);
-        while (!"".equals(commit)) {
+        String commit;
+        if (revision == null) {
+            commit = getCurrentCommit();
+        } else {
+            commit = revision;
+        }
+        if (commit!=null && !commit.isEmpty()) {
+            printAllCommits(commit, "");
+        }
+    }
+
+    private static void printAllCommits(String commit, String untilCommit) throws IOException, ParseException {
+        if (!commit.isEmpty()) {
+            if (commit.equals(untilCommit)) {
+                return;
+            }
+            Utility ut = new Utility(GIT_OBJ_DIR);
             JSONObject commitInfo = ut.getJsonInfo(commit);
             printCommit(commitInfo, commit);
-            commit = (String) commitInfo.get("parent");
+            String parent = (String) commitInfo.get("parent");
+            if (commitInfo.containsKey("merged")) {
+                String parentOne = (String) commitInfo.get("parentOne");
+                String parentTwo = (String) commitInfo.get("parentTwo");
+                printAllCommits(parentOne, parent);
+                printAllCommits(parentTwo, parent);
+            }
+            printAllCommits(parent, untilCommit);
         }
+
+
+
     }
 
     private static void printCommit(JSONObject commitInfo, String commit) {
@@ -286,18 +342,69 @@ public class Git implements Runnable {
     }
 
 
-    /**
-     * works like reset --soft in real git
-     */
-    @Command(description = "Reset to commit", mixinStandardHelpOptions = true)
+    @Command(description = "Reset to head", mixinStandardHelpOptions = true)
     public static void reset(
             @Parameters(arity = "1", paramLabel = "commit") String commit)
-            throws IOException {
+            throws IOException, ParseException {
+        // reset and then log
+        String oldCommit = getCurrentCommit();
         //replace head branch pointer
         String currentBranch = new String(Files.readAllBytes(Paths.get(HEAD)));
         try (PrintWriter writer = new PrintWriter(new File(GIT_REF_DIR + File.separator + currentBranch))) {
             writer.print(commit);
         }
+        //clean metadata
+        JsonWrapper index = new JsonWrapper(GIT_INDEX);
+        index.clear();
+        index.write();
+        //copy to working directory
+        updateFromTree(oldCommit, commit);
+
+    }
+
+    private static void updateFromTree(String currentCommit, String updateFromCommit) throws IOException, ParseException {
+        Utility ut = new Utility(GIT_OBJ_DIR);
+        JSONObject currInfo = ut.getJsonInfo(currentCommit);
+        currInfo = ut.getJsonInfo((String) currInfo.get("tree"));
+
+        JSONObject revInfo = ut.getJsonInfo(updateFromCommit);
+        revInfo = ut.getJsonInfo((String) revInfo.get("tree"));
+
+        //delete files which are not in new branch
+        for (Iterator iterator = currInfo.keySet().iterator(); iterator.hasNext(); ) {
+            String currKey = (String) iterator.next();
+
+            if (!revInfo.containsKey(currKey)) {
+                File file = new File(currKey);
+                file.delete();
+            }
+        }
+
+        //create new files from revision
+        for (Iterator iterator = revInfo.keySet().iterator(); iterator.hasNext(); ) {
+            String revKey = (String) iterator.next();
+            if (!currInfo.containsKey(revKey)) {
+                File file = new File(revKey);
+                File parent = file.getParentFile();
+                if (!parent.exists() && !parent.mkdirs()) {
+                    throw new IllegalStateException("Couldn't create dir: " + parent);
+                }
+                file.createNewFile();
+            }
+        }
+
+        //replace contents of matching files
+        for (Iterator iterator = revInfo.keySet().iterator(); iterator.hasNext(); ) {
+            String revKey = (String) iterator.next();
+            if (currInfo.containsKey(revKey)) {
+                JSONArray revCopy = (JSONArray) revInfo.get(revKey);
+                Files.copy(Paths.get(GIT_OBJ_DIR + File.separator + (String) revCopy.get(0)),
+                        Paths.get(revKey),
+                        StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+
+
     }
 
     private static String getCurrentCommit() throws IOException {
@@ -321,6 +428,7 @@ public class Git implements Runnable {
     picocli interprets all following arguments as positional parameters,
     even arguments that match an option name.
      */
+    //TODO: fix error log after reset
     @Command(description = "Checkout files", mixinStandardHelpOptions = true)
     public static void checkout(
             @Option(names = {"-b", "--branch"}) boolean newBranch,
@@ -336,7 +444,17 @@ public class Git implements Runnable {
             }
         }
         else if (args.size() == 1) {
-            checkoutBranch((String) args.get(0));
+            String name = (String) args.get(0);
+            Path here = Files.list(Paths.get(GIT_REF_DIR))
+                    .filter(x -> name.equals(x.getFileName().toString()))
+                    .findAny()
+                    .orElse(null);
+            if (here == null) { //no such branch, trying to checout revision
+                checkoutRevision(name);
+            }
+            else {
+                checkoutBranch(name);
+            }
         }
 
     }
@@ -378,10 +496,6 @@ public class Git implements Runnable {
         }
     }
 
-
-
-
-
     private static void checkoutFiles(List<String> files) throws IOException, ParseException {
         JsonWrapper commitInfo = getWorkingTree();
         JsonWrapper index = new JsonWrapper(GIT_INDEX);
@@ -400,57 +514,30 @@ public class Git implements Runnable {
         }
     }
 
+    private static void checkoutRevision(String revision) throws IOException, ParseException {
+        updateFromTree(getCurrentCommit(), revision);
+        String currentBranch = new String(Files.readAllBytes(Paths.get(HEAD)));
+        try (PrintWriter writer = new PrintWriter(GIT_REF_DIR + File.separator + currentBranch)) {
+            writer.print(revision);
+        }
+    }
+
 
     private static void checkoutBranch(String revision)
             throws IOException, ParseException {
-        Utility ut = new Utility(GIT_OBJ_DIR);
-        //replace head pointer
-        String currentCommit = getCurrentCommit();
         String revisionCommit = new String(Files.readAllBytes(Paths.get(GIT_REF_DIR + File.separator + revision)));
-
-        JSONObject currInfo = ut.getJsonInfo(currentCommit);
-        currInfo = ut.getJsonInfo((String) currInfo.get("tree"));
-
-        JSONObject revInfo = ut.getJsonInfo(revisionCommit);
-        revInfo = ut.getJsonInfo((String) revInfo.get("tree"));
-
-        //delete files which are not in new branch
-        for (Iterator iterator = currInfo.keySet().iterator(); iterator.hasNext(); ) {
-            String currKey = (String) iterator.next();
-
-            if (!revInfo.containsKey(currKey)) {
-                File file = new File(currKey);
-                file.delete();
-            }
+        if (!revisionCommit.isEmpty()) {
+            updateFromTree(getCurrentCommit(), revisionCommit);
         }
-
-        //create new files from revision
-        for (Iterator iterator = revInfo.keySet().iterator(); iterator.hasNext(); ) {
-            String revKey = (String) iterator.next();
-            if (!currInfo.containsKey(revKey)) {
-                File file = new File(revKey);
-                File parent = file.getParentFile();
-                if (!parent.exists() && !parent.mkdirs()) {
-                    throw new IllegalStateException("Couldn't create dir: " + parent);
-                }
-                file.createNewFile();
-            }
+        else {
+            JsonWrapper index = new JsonWrapper(GIT_INDEX);
+            index.clear();
+            index.write();
         }
-
-        //replace contents of matching files
-        for (Iterator iterator = revInfo.keySet().iterator(); iterator.hasNext(); ) {
-            String revKey = (String) iterator.next();
-            if (currInfo.containsKey(revKey)) {
-                JSONArray revCopy = (JSONArray) revInfo.get(revKey);
-                Files.copy(Paths.get(GIT_OBJ_DIR + File.separator + (String) revCopy.get(0)),
-                        Paths.get(revKey),
-                        StandardCopyOption.REPLACE_EXISTING);
-            }
-        }
-
         try (PrintWriter writer = new PrintWriter(HEAD)) {
             writer.print(revision);
         }
+
     }
 
     @Command(description = "Merge two branches", mixinStandardHelpOptions = true)
@@ -460,7 +547,14 @@ public class Git implements Runnable {
         String commitY = getRevisionCommit(branch);
         Utility ut = new Utility(GIT_OBJ_DIR);
         String commitW = ut.LCA(commitX, commitY);
-        JsonWrapper resultTree;
+        String currentBranch = new String(Files.readAllBytes(Paths.get(HEAD)));
+        if (commitW.equals(commitX) || commitW.equals(commitY)) {     //current is parent of new branch
+            updateFromTree(commitX, commitY);
+            try (PrintWriter writer = new PrintWriter(GIT_REF_DIR + File.separator + currentBranch)) {
+                writer.print(commitY);
+            }
+            return;
+        }
         if (!commitW.isEmpty()) {
             JsonWrapper cX = new JsonWrapper(GIT_OBJ_DIR + File.separator + commitX);
             JsonWrapper cY = new JsonWrapper(GIT_OBJ_DIR + File.separator + commitY);
@@ -525,7 +619,22 @@ public class Git implements Runnable {
             if (!conflict.isEmpty()) {
                 solveConflicts(conflict, treeX, treeY);
             }
+
+            //create special merge commit
+            createMergeCommit(branch, commitX, commitY, commitW);
         }
+    }
+
+    private static void createMergeCommit(String branch, String commitX, String commitY, String parent)
+            throws IOException, ParseException {
+        String commitFilename = commit("Merge branch " + branch);
+        JsonWrapper commitInfo = new JsonWrapper(GIT_OBJ_DIR + File.separator + commitFilename);
+        commitInfo.addItemSingle("parent", parent);
+        commitInfo.addItemSingle("parentOne", commitX);
+        commitInfo.addItemSingle("parentTwo", commitY);
+        commitInfo.addItemSingle("merged", "true");
+        commitInfo.write();
+
     }
 
     private static void solveConflicts(ArrayList<String> conflict, JsonWrapper treeX, JsonWrapper treeY) throws IOException, ParseException {
