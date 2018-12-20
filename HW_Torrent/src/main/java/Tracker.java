@@ -167,7 +167,7 @@ public class Tracker {
                         os.flush();
                         break;
                     case 4:
-                        boolean status = false;
+                        boolean status;
                         short port = is.readShort();
                         int amount = is.readInt();
                         int i = 0;

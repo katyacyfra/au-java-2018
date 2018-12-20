@@ -22,17 +22,6 @@ public class TorrentTest {
     private static ExecutorService executor = Executors.newFixedThreadPool(5);
 
 
-
-    private String bytesToHex(byte[] hash) {
-        StringBuffer hexString = new StringBuffer();
-        for (int i = 0; i < hash.length; i++) {
-            String hex = Integer.toHexString(0xff & hash[i]);
-            if (hex.length() == 1) hexString.append('0');
-            hexString.append(hex);
-        }
-        return hexString.toString();
-    }
-
     private String getMD5(String filePath) throws IOException, NoSuchAlgorithmException {
         try(FileInputStream inputStream = new FileInputStream(filePath))
         {
@@ -45,7 +34,7 @@ public class TorrentTest {
                 buff.clear();
             }
             byte[] hashValue = md.digest();
-            return bytesToHex(hashValue);
+            return FileUtility.bytesToHex(hashValue);
         }
     }
 

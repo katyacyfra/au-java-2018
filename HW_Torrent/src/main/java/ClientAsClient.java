@@ -3,6 +3,7 @@ import org.json.simple.JSONObject;
 
 import java.io.*;
 import java.net.Socket;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -114,6 +115,29 @@ public class ClientAsClient {
         return (int) number;
     }
 
+    private static Map<Integer, String> getCheckSums(int fileId,  String ip, short port) throws IOException {
+        Map<Integer, String> result = new HashMap<>();
+        Socket query = new Socket(ip, port);
+        DataOutputStream os = new DataOutputStream(query.getOutputStream());
+        os.writeByte(3);
+        os.writeInt(fileId);
+        os.flush();
+
+        DataInputStream is = new DataInputStream(query.getInputStream());
+        int partsNumber = is.readInt();
+        int i = 0;
+        while (i < partsNumber) {
+            result.put(is.readInt(),is.readUTF());
+            i++;
+        }
+
+        os.close();
+        is.close();
+        query.close();
+        return result;
+
+    }
+
 
     public static JSONObject download(int fileID) throws IOException {
         long size = getSize(fileID);
@@ -124,7 +148,7 @@ public class ClientAsClient {
         int partsNumber = partsCount(size);
 
         boolean[] requested = new boolean[partsNumber];
-        boolean[] downloaded = new boolean[partsNumber];
+        String[] downloaded = new String[partsNumber];
 
         List<String> available = source(fileID);
         if (available.size() == 0) {
@@ -163,6 +187,7 @@ public class ClientAsClient {
                     p.put("id", String.valueOf(i));
                     p.put("start", (long) FileUtility.BLOCK_SIZE*i);
                     p.put("length", partLength);
+                    p.put("checkSum", downloaded[(int) i]);
                     partsInfo.add(p);
                 }
                 else {
@@ -249,13 +274,14 @@ public class ClientAsClient {
 
     static class DownloadTask implements Callable<Boolean> {
         boolean[] requested;
-        boolean[] ready;
+        String[] ready;
         String ip;
         Short port;
         int fileId;
         String filePath;
 
-        DownloadTask(String peer, boolean[] req, boolean[] downloaded, int file, String fPath) {
+
+        DownloadTask(String peer, boolean[] req, String[] downloaded, int file, String fPath) {
             requested = req;
             String[] addr = peer.split(":");
             ip = addr[0];
@@ -269,8 +295,10 @@ public class ClientAsClient {
         public Boolean call() {
             try {
                 Queue<Integer> availableParts = stat(fileId, ip, port);
+                Map<Integer, String> checksums = getCheckSums(fileId, ip, port);
                 while (!availableParts.isEmpty()) {
                     int part = availableParts.poll();
+                    String checksum = checksums.get(part);
 
                     boolean willDownload = false;
                     synchronized (requested) {
@@ -281,12 +309,20 @@ public class ClientAsClient {
                     }
                     if (willDownload) {
                         try {
-                            //System.out.println("write part " + part + " by " + port);
                             byte[] content = get(fileId, part, ip, port);
-                            FileUtility.writePart(filePath, part*FileUtility.BLOCK_SIZE, content);
+                            String hash = FileUtility.hashBytes(content);
+
+                            if (hash.equals(checksum)) {
+                                FileUtility.writePart(filePath, part * FileUtility.BLOCK_SIZE, content);
+                                ready[part] = hash;
+                            }
+                            else {
+                                throw new IllegalArgumentException("Wrong checksum value!");
+                            }
+
                         }
-                        catch (IOException e) {
-                            e.printStackTrace();
+                        catch (IOException | NoSuchAlgorithmException | IllegalArgumentException e) {
+                            //e.printStackTrace();
                             synchronized (requested) {
                                 requested[part] = false;
                             }

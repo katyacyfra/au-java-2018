@@ -22,6 +22,8 @@ public class ClientAsServer implements Runnable {
     }
 
 
+
+
     private void launch() throws IOException {
         Socket socket = null;
         try {
@@ -103,6 +105,23 @@ public class ClientAsServer implements Runnable {
                                 partLength);
                         os.writeLong(partLength);
                         os.write(content);
+                        os.flush();
+                        break;
+                    case 3://get checksum
+                        int fileID = is.readInt();
+                        if (filesInfo.containsKey(String.valueOf(fileID))) {
+                            JSONObject fileInf = (JSONObject) filesInfo.get(String.valueOf(fileID));
+                            JSONArray partsTotal  = (JSONArray) fileInf.get("parts");
+                            os.writeInt(partsTotal.size());
+                            for (Object obj : partsTotal) {
+                                JSONObject ob = (JSONObject) obj;
+                                os.writeInt(Integer.parseInt((String) ob.get("id")));
+                                os.writeUTF((String) ob.get("checkSum"));
+                            }
+                        }
+                        else {
+                            os.writeInt(0);
+                        }
                         os.flush();
                         break;
                     default:

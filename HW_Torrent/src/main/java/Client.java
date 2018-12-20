@@ -6,6 +6,8 @@ import org.json.simple.parser.ParseException;
 
 import java.io.*;
 import java.net.Socket;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -54,7 +56,7 @@ public class Client {
     }
 
     @Command
-    public static void upload(String filePath) throws IOException {
+    public static void upload(String filePath) throws IOException, NoSuchAlgorithmException {
         File f = new File(filePath);
         if(f.exists() && !f.isDirectory()) {
             int fileId = clientWorker.upload(filePath);
@@ -114,6 +116,29 @@ public class Client {
                 DataOutputStream os = new DataOutputStream(query.getOutputStream());
                 os.writeByte(4);
                 os.writeShort(port);
+
+                //check unavailable files
+                List<String> toRemove = new ArrayList<>();
+                synchronized (info) {
+                    for (String key : keys) {
+                        JSONObject fInfo = (JSONObject) info.get(key);
+                        String filename = (String) fInfo.get("file_path");
+                        File f = new File(filename);
+                        JSONArray parts = (JSONArray) fInfo.get("parts");
+                        if (!f.exists() || parts.size() == 0) {
+                            toRemove.add(key);
+                        }
+                    }
+                }
+                synchronized (info) {
+                    for (String key : toRemove) {
+                        info.remove(key);
+                    }
+                    saveInfo(info);
+                    keys = info.keySet();
+                }
+
+
                 os.writeInt(keys.size());
                 Iterator<String> it = keys.iterator();
 
